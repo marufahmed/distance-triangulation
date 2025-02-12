@@ -38,8 +38,8 @@ class StereoVisionSystem:
 
     def calibrate_stereo(self, left_images: List[np.ndarray], 
                         right_images: List[np.ndarray], 
-                        chess_size: Tuple[int, int]=(9,6), 
-                        square_size: float=0.025) -> bool:
+                        chess_size: Tuple[int, int]=(7,9), 
+                        square_size: float=0.020) -> bool:
         """
         Calibrate stereo camera system using provided image pairs
         """

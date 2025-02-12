@@ -142,9 +142,9 @@ def capture_frame(camera_info: CameraInfo) -> Optional[np.ndarray]:
             with safe_video_capture(camera_info.index, camera_info.resolution) as cap:
                 if cap.isOpened():
                     # Discard first few frames
-                    for _ in range(3):
+                    for _ in range(1):
                         cap.read()
-                        time.sleep(0.1)
+                        time.sleep(0.01)
                     
                     ret, frame = cap.read()
                     if ret and frame is not None:
@@ -154,6 +154,6 @@ def capture_frame(camera_info: CameraInfo) -> Optional[np.ndarray]:
         except Exception as e:
             logging.error(f"Capture attempt {attempt + 1} failed for camera {camera_info.port}: {str(e)}")
             
-        time.sleep(0.5)
+        time.sleep(0.1)
     
     return None

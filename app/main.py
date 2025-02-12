@@ -7,6 +7,8 @@ from stereo_vision import StereoVisionSystem, Point3D
 from utils import get_camera_indexes, capture_frame, CameraInfo
 import os
 import logging
+import time
+
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -63,18 +65,31 @@ def main():
         st.header("Camera Calibration")
         col1, col2 = st.columns(2)
         
+
         with col1:
-            if st.button("Capture Calibration Pair"):
-                left_frame = capture_frame(left_cam)
-                right_frame = capture_frame(right_cam)
-                if left_frame is not None and right_frame is not None:
-                    st.session_state.calibration_images_left.append(left_frame)
-                    st.session_state.calibration_images_right.append(right_frame)
-                    st.success(f"Captured pair {len(st.session_state.calibration_images_left)}")
-                    logging.info("Successfully captured calibration pair")
-                else:
-                    st.error("Failed to capture frames from one or both cameras")
-                    logging.error("Failed to capture calibration frames")
+            if st.button("Capture Calibration Pairs"):
+                captured_pairs = 0
+                start_time = time.time()
+
+                while captured_pairs < 20:
+                    left_frame = capture_frame(left_cam)
+                    right_frame = capture_frame(right_cam)
+
+                    if left_frame is not None and right_frame is not None:
+                        st.session_state.calibration_images_left.append(left_frame)
+                        st.session_state.calibration_images_right.append(right_frame)
+                        captured_pairs += 1
+                        st.success(f"Captured pair {captured_pairs}")
+                        logging.info(f"Successfully captured calibration pair {captured_pairs}")
+                    else:
+                        st.error("Failed to capture frames from one or both cameras")
+                        logging.error("Failed to capture calibration frames")
+
+                    elapsed_time = time.time() - start_time
+                    remaining_time = 1 - elapsed_time
+                    if remaining_time > 0:
+                        time.sleep(remaining_time / (20 - captured_pairs))  # Adjust sleep time to capture within 1 second
+
 
         with col2:
             if st.button("Perform Calibration"):
