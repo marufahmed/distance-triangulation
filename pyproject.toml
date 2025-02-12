@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "distance-triangulation"
+version = "0.1.0"
+description = ""
+authors = ["Maruf Ahmed"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+opencv-python = "^4.11.0.86"
+numpy = "^2.2.2"
+streamlit = "^1.42.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
