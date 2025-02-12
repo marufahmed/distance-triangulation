@@ -30,13 +30,16 @@ class StereoVisionSystem:
         self.P2 = None
         self.stereo_map_l = None
         self.stereo_map_r = None
+        self.min_valid_depth = 0.1  # 10cm
+        self.max_valid_depth = 5.0  # 5m
 
     def calibrate_stereo(self, left_images: List[np.ndarray], 
                         right_images: List[np.ndarray], 
                         chess_size: Tuple[int, int]=(9,6), 
-                        square_size: float=0.025) -> bool:
+                        square_size: float=0.025) -> Tuple[bool, float]:
         """
-        Calibrate stereo camera system using provided image pairs
+        Enhanced calibration with error reporting
+        Returns: (success, reprojection_error)
         """
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
         objp = np.zeros((chess_size[0] * chess_size[1], 3), np.float32)
@@ -60,11 +63,28 @@ class StereoVisionSystem:
                 corners_r2 = cv2.cornerSubPix(right_gray, corners_r, (11,11), (-1,-1), criteria)
                 imgpoints_l.append(corners_l2)
                 imgpoints_r.append(corners_r2)
-
         if len(objpoints) < 5:
-            return False
+            return False, float('inf')
 
         ret, self.camera_matrix_l, self.dist_coeffs_l, self.camera_matrix_r, self.dist_coeffs_r, \
+        self.R, self.T, self.E, self.F = cv2.stereoCalibrate(
+            objpoints, imgpoints_l, imgpoints_r,
+            None, None, None, None,
+            left_gray.shape[::-1], None, None,
+            cv2.CALIB_FIX_INTRINSIC, criteria)
+
+        # Calculate reprojection error
+        total_error = 0
+        for i in range(len(objpoints)):
+            proj_points_l, _ = cv2.projectPoints(objpoints[i], rvecs[i], tvecs[i], 
+                                               self.camera_matrix_l, self.dist_coeffs_l)
+            error = cv2.norm(imgpoints_l[i], proj_points_l, cv2.NORM_L2) / len(proj_points_l)
+            total_error += error
+
+        self.calibration_error = total_error / len(objpoints)
+
+        ret, self.camera_matrix_l, self.dist_coeffs_l, self.camera_matrix_r, self.dist_coeffs_r, \
+        
         self.R, self.T, self.E, self.F = cv2.stereoCalibrate(
             objpoints, imgpoints_l, imgpoints_r,
             None, None, None, None,
@@ -84,7 +104,7 @@ class StereoVisionSystem:
             self.camera_matrix_r, self.dist_coeffs_r, self.R2, self.P2,
             left_gray.shape[::-1], cv2.CV_16SC2)
 
-        return True
+        return True, self.calibration_error
 
     def compute_depth_map(self, left_img: np.ndarray, right_img: np.ndarray) -> np.ndarray:
         """Compute depth map from rectified stereo images"""
@@ -145,6 +165,31 @@ class StereoVisionSystem:
                  dist_coeffs_r=self.dist_coeffs_r,
                  R=self.R, T=self.T, E=self.E, F=self.F, Q=self.Q,
                  R1=self.R1, R2=self.R2, P1=self.P1, P2=self.P2)
+    def validate_point_measurement(self, point: Point3D) -> bool:
+        """Validate if a 3D point measurement is within acceptable range"""
+        # Check if point is within valid depth range
+        if not (self.min_valid_depth <= abs(point.z) <= self.max_valid_depth):
+            return False
+            
+        # Check if point has valid coordinates
+        if any(map(math.isnan, [point.x, point.y, point.z])):
+            return False
+            
+        return True
+
+    def measure_distance(self, point1: Point3D, point2: Point3D) -> Optional[float]:
+        """Enhanced distance measurement with validation"""
+        if not (self.validate_point_measurement(point1) and 
+                self.validate_point_measurement(point2)):
+            return None
+            
+        distance = np.sqrt(
+            (point1.x - point2.x)**2 + 
+            (point1.y - point2.y)**2 + 
+            (point1.z - point2.z)**2
+        )
+        
+        return distance if self.min_valid_depth <= distance <= self.max_valid_depth else None
 
     def load_calibration(self, filename: str) -> bool:
         """Load calibration parameters"""

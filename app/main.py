@@ -6,6 +6,7 @@ import time
 # from app.stereo_vision import StereoVisionSystem, Point3D
 # from app.utils import get_camera_indexes, capture_frame, verify_camera_access
 from stereo_vision import StereoVisionSystem, Point3D
+from camera_manager import CameraManager
 from utils import get_camera_indexes, capture_frame, verify_camera_access
 import os
 
@@ -31,6 +32,28 @@ default_right = int(os.getenv("RIGHT_CAMERA_INDEX", "2"))
 
 def main():
     st.set_page_config(page_title="Stereo Vision System", layout="wide")
+    
+    # Initialize camera manager
+    if 'camera_manager' not in st.session_state:
+        st.session_state.camera_manager = CameraManager()
+    
+    # Camera management sidebar
+    st.sidebar.subheader("Camera Management")
+    if st.sidebar.button("Refresh Cameras"):
+        st.session_state.camera_manager.update_cameras()
+    
+    left_cam, right_cam = st.session_state.camera_manager.get_camera_pair()
+    
+    if not (left_cam and right_cam):
+        st.error("Two cameras are required for stereo vision!")
+        st.write("Detected cameras:")
+        for cam in st.session_state.camera_manager.cameras.values():
+            st.write(f"Camera {cam.index}: {cam.position} ({cam.resolution})")
+        return
+    
+    if st.sidebar.button("Swap Left/Right"):
+        st.session_state.camera_manager.swap_positions()
+        st.rerun()
     
     # Debug information
     st.sidebar.subheader("Camera Detection")
